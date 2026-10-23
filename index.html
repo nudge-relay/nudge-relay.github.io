@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nudge Relay - Командный пункт</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f4f8; padding: 20px; color: #333; }
+        .container { max-width: 500px; margin: 0 auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .hidden { display: none !important; }
+        .input-group { position: relative; margin-bottom: 10px; }
+        input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; font-size: 16px; padding-right: 40px; }
+        button { width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: none; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; color: white; }
+        .btn-blue { background: #4285f4; } .btn-blue:hover { background: #3367d6; }
+        .btn-grey { background: #666; } .btn-grey:hover { background: #555; }
+        .btn-green { background: #34a853; } .btn-green:hover { background: #2c8e47; }
+        .btn-red { background: #d93025; width: auto; padding: 8px 16px; } .btn-red:hover { background: #b3261e; }
+        .btn-google { background: #fff; color: #757575; border: 1px solid #ddd; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .btn-google:hover { background: #f5f5f5; }
+        .eye-icon { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 18px; user-select: none; }
+        .device-item { background: #e8f0fe; padding: 12px; margin-bottom: 8px; border-radius: 8px; cursor: pointer; border: 2px solid transparent; transition: 0.2s; display: flex; justify-content: space-between; align-items: center; }
+        .device-item:hover { border-color: #4285f4; }
+        .device-item.active { background: #d2e3fc; border-color: #4285f4; }
+        .device-code { font-family: monospace; background: #fff; padding: 2px 6px; border-radius: 4px; color: #4285f4; font-weight: bold; }
+        .error { color: #d93025; font-size: 14px; margin-bottom: 10px; background: #fce8e6; padding: 10px; border-radius: 8px; }
+        hr { margin: 20px 0; border: 1px solid #eee; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- ЭКРАН ВХОДА -->
+    <div id="auth-section">
+        <h2>Вход в Nudge Relay</h2>
+        <div id="auth-error" class="error hidden"></div>
+        
+        <input type="email" id="email" placeholder="Email">
+        
+        <div class="input-group">
+            <input type="password" id="password" placeholder="Пароль">
+            <span class="eye-icon" id="togglePassword">👁️</span>
+        </div>
+        
+        <button id="loginBtn" class="btn-blue">Войти</button>
+        <button id="registerBtn" class="btn-grey">Зарегистрироваться</button>
+        
+        <div style="text-align: center; margin: 15px 0; color: #999;">— или —</div>
+        
+        <button id="googleBtn" class="btn-google">
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width:20px;" alt="G">
+            Войти через Google
+        </button>
+    </div>
+
+    <!-- ЭКРАН КОМАНДНОГО ПУНКТА -->
+    <div id="dashboard-section" class="hidden">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="margin:0;">Мой Пульт</h2>
+            <button id="logoutBtn" class="btn-red">Выйти</button>
+        </div>
+
+        <h3>Добавить устройство</h3>
+        <input type="text" id="deviceCodeInput" placeholder="Код устройства (например, NR-7777)">
+        <input type="text" id="deviceNameInput" placeholder="Название (например, Комп брата)">
+        <button id="addDeviceBtn" class="btn-green">Привязать устройство</button>
+
+        <hr>
+
+        <h3>Мои устройства</h3>
+        <div id="devicesList">У вас пока нет устройств.</div>
+
+        <div id="messageArea" class="hidden">
+            <hr>
+            <h3>Сообщение для: <span id="activeDeviceName" style="color: #4285f4;"></span></h3>
+            <input type="text" id="messageInput" placeholder="Введите текст...">
+            <button id="sendMessageBtn" class="btn-blue">Отправить</button>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js';
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from 'https://www.gstatic.com/firebasejs/12.8.0/firebase-auth.js';
+    import { getDatabase, ref, set, push, onValue } from 'https://www.gstatic.com/firebasejs/12.8.0/firebase-database.js';
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyDgpS0FqB5b4oi7NTvdm9sHM0DVaPuxYuY",
+        authDomain: "nudge-relay-3fce7.firebaseapp.com",
+        databaseURL: "https://nudge-relay-3fce7-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "nudge-relay-3fce7",
+        storageBucket: "nudge-relay-3fce7.firebasestorage.app",
+        messagingSenderId: "533763167345",
+        appId: "1:533763167345:web:6bdbc5786aaf7cb735b7d0"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
+    const provider = new GoogleAuthProvider();
+
+    const authSection = document.getElementById('auth-section');
+    const dashSection = document.getElementById('dashboard-section');
+    const authError = document.getElementById('auth-error');
+    const devicesList = document.getElementById('devicesList');
+    const messageArea = document.getElementById('messageArea');
+    
+    let currentUser = null;
+    let activeDeviceCode = null;
+
+    // Глазик для пароля
+    document.getElementById('togglePassword').onclick = () => {
+        const passInput = document.getElementById('password');
+        const icon = document.getElementById('togglePassword');
+        if (passInput.type === 'password') {
+            passInput.type = 'text';
+            icon.textContent = '🙈';
+        } else {
+            passInput.type = 'password';
+            icon.textContent = '👁️';
+        }
+    };
+
+    function showError(msg) {
+        authError.textContent = msg;
+        authError.classList.remove('hidden');
+        setTimeout(() => authError.classList.add('hidden'), 5000);
+    }
+
+    document.getElementById('loginBtn').onclick = () => {
+        signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('password').value).catch(e => showError("Ошибка: " + e.message));
+    };
+
+    document.getElementById('registerBtn').onclick = () => {
+        createUserWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('password').value).catch(e => showError("Ошибка: " + e.message));
+    };
+
+    document.getElementById('googleBtn').onclick = () => {
+        signInWithPopup(auth, provider).catch(e => showError("Ошибка Google: " + e.message));
+    };
+
+    document.getElementById('logoutBtn').onclick = () => signOut(auth);
+
+    onAuthStateChanged(auth, user => {
+        if (user) {
+            currentUser = user;
+            authSection.classList.add('hidden');
+            dashSection.classList.remove('hidden');
+            loadDevices();
+        } else {
+            currentUser = null;
+            authSection.classList.remove('hidden');
+            dashSection.classList.add('hidden');
+        }
+    });
+
+    document.getElementById('addDeviceBtn').onclick = () => {
+        const code = document.getElementById('deviceCodeInput').value.trim();
+        const name = document.getElementById('deviceNameInput').value.trim();
+        if (!code || !name) return alert("Введите код и имя!");
+
+        set(ref(db, 'users/' + currentUser.uid + '/devices/' + code), {
+            name: name,
+            addedAt: Date.now()
+        }).then(() => {
+            document.getElementById('deviceCodeInput').value = '';
+            document.getElementById('deviceNameInput').value = '';
+        });
+    };
+
+    function loadDevices() {
+        onValue(ref(db, 'users/' + currentUser.uid + '/devices'), (snapshot) => {
+            devicesList.innerHTML = '';
+            const data = snapshot.val();
+            if (!data) {
+                devicesList.innerHTML = "У вас пока нет устройств.";
+                return;
+            }
+            for (const code in data) {
+                const div = document.createElement('div');
+                div.className = 'device-item';
+                div.innerHTML = `<span>${data[code].name}</span> <span class="device-code">${code}</span>`;
+                div.onclick = () => selectDevice(code, data[code].name, div);
+                devicesList.appendChild(div);
+            }
+        });
+    }
+
+    function selectDevice(code, name, element) {
+        activeDeviceCode = code;
+        document.getElementById('activeDeviceName').textContent = name;
+        messageArea.classList.remove('hidden');
+        document.querySelectorAll('.device-item').forEach(el => el.classList.remove('active'));
+        element.classList.add('active');
+    }
+
+    document.getElementById('sendMessageBtn').onclick = () => {
+        const text = document.getElementById('messageInput').value.trim();
+        if (!text || !activeDeviceCode) return;
+
+        push(ref(db, 'messages/' + activeDeviceCode), {
+            text: text,
+            from: 'commander',
+            senderName: currentUser.email,
+            timestamp: Date.now()
+        }).then(() => {
+            document.getElementById('messageInput').value = '';
+        });
+    };
+</script>
+</body>
+  </html>
