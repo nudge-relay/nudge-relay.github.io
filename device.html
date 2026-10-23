@@ -5,61 +5,41 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nudge Relay - Устройство</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #202124; padding: 20px; color: white; text-align: center; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; margin: 0; }
-        .container { background: #2d2e31; padding: 30px; border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); width: 100%; max-width: 400px; box-sizing: border-box; }
-        h1 { font-size: 24px; margin-bottom: 5px; }
-        .subtitle { color: #9aa0a6; font-size: 14px; margin-bottom: 30px; }
+        body { font-family: 'Segoe UI', sans-serif; background: #202124; color: white; text-align: center; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; margin: 0; }
+        .container { background: #2d2e31; padding: 30px; border-radius: 16px; width: 100%; max-width: 400px; box-sizing: border-box; }
+        #deviceCode { font-family: monospace; font-size: 42px; font-weight: bold; color: #8ab4f8; }
+        .btn { background: #34a853; color: white; border: none; padding: 15px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 20px; width: 100%; }
+        .btn:disabled { background: #555; cursor: not-allowed; }
+        .status { font-size: 14px; color: #9aa0a6; margin-top: 10px; }
         
-        .code-container { display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 30px; }
-        #deviceCode { font-family: 'Consolas', monospace; font-size: 42px; font-weight: bold; color: #8ab4f8; letter-spacing: 2px; }
-        
-        .btn-toggle { background: #3c4043; color: #8ab4f8; border: none; padding: 10px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
-        .btn-toggle:hover { background: #4a4d51; }
-        
-        /* МОДАЛЬНОЕ ОКНО */
+        /* Стили для окна */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: none; justify-content: center; align-items: center; z-index: 1000; }
-        .modal-content { background: white; color: #333; padding: 25px; border-radius: 12px; width: 90%; max-width: 350px; text-align: left; box-shadow: 0 10px 30px rgba(0,0,0,0.5); animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-        @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-        
+        .modal-content { background: white; color: #333; padding: 25px; border-radius: 12px; width: 90%; max-width: 350px; text-align: left; }
         .modal-header { display: flex; align-items: center; gap: 10px; color: #d93025; font-weight: bold; font-size: 18px; margin-bottom: 15px; }
-        .modal-icon { width: 24px; height: 24px; }
-        .modal-text { font-size: 16px; margin-bottom: 20px; line-height: 1.4; background: #f8f9fa; padding: 10px; border-radius: 8px; border-left: 4px solid #d93025; }
-        
+        .modal-text { font-size: 16px; margin-bottom: 20px; background: #f8f9fa; padding: 10px; border-radius: 8px; border-left: 4px solid #d93025; }
         .modal-buttons { display: flex; gap: 10px; }
-        .modal-buttons button { flex: 1; padding: 12px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .modal-buttons button { flex: 1; padding: 12px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
         .btn-reply { background: #4285f4; color: white; }
-        .btn-reply:hover { background: #3367d6; }
         .btn-ok { background: #e0e0e0; color: #333; }
-        .btn-ok:hover { background: #d0d0d0; }
-        
-        #replyInput { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 16px; display: none; }
+        #replyInput { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 8px; display: none; }
     </style>
 </head>
 <body>
 
     <div class="container">
         <h1>Это устройство</h1>
-        <p class="subtitle">Введите этот код в командном пункте</p>
+        <p class="status">Введите этот код на пульте</p>
+        <div id="deviceCode" style="margin-bottom: 20px;">NR-XXXX</div>
         
-        <div class="code-container">
-            <div id="deviceCode">NR-XXXX</div>
-            <button class="btn-toggle" id="toggleCodeBtn" title="Скрыть код">
-                <svg id="eye-open" viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                <svg id="eye-closed" style="display:none;" viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
-            </button>
-        </div>
-        <p class="subtitle" id="statusText">Ожидание сообщений...</p>
+        <button id="pushBtn" class="btn">Включить пуши</button>
+        <p class="status" id="pushStatus"></p>
     </div>
 
-    <!-- МОДАЛЬНОЕ ОКНО -->
     <div class="modal-overlay" id="errorModal">
         <div class="modal-content">
-            <div class="modal-header">
-                <svg class="modal-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-                Системное уведомление
-            </div>
+            <div class="modal-header">⚠️ Системное уведомление</div>
             <div class="modal-text" id="modalMessage"></div>
-            <input type="text" id="replyInput" placeholder="Введите ваш ответ...">
+            <input type="text" id="replyInput" placeholder="Введите ответ...">
             <div class="modal-buttons">
                 <button class="btn-reply" id="btnReply">Ответить</button>
                 <button class="btn-ok" id="btnOk">ОК</button>
@@ -68,8 +48,9 @@
     </div>
 
 <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js';
-    import { getDatabase, ref, push, onChildAdded } from 'https://www.gstatic.com/firebasejs/12.8.0/firebase-database.js';
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js';
+    import { getDatabase, ref, set, push, onChildAdded } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-database.js';
+    import { getMessaging, getToken } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-messaging.js';
 
     const firebaseConfig = {
         apiKey: "AIzaSyDgpS0FqB5b4oi7NTvdm9sHM0DVaPuxYuY",
@@ -84,54 +65,42 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // Генерация кода устройства
     let deviceCode = localStorage.getItem('nr_device_code');
     if (!deviceCode) {
         deviceCode = `NR-${Math.floor(1000 + Math.random() * 9000)}`;
         localStorage.setItem('nr_device_code', deviceCode);
     }
+    document.getElementById('deviceCode').textContent = deviceCode;
 
-    const codeDisplay = document.getElementById('deviceCode');
-    codeDisplay.textContent = deviceCode;
-
-    // Скрыть/Показать код
-    let isHidden = false;
-    document.getElementById('toggleCodeBtn').onclick = () => {
-        isHidden = !isHidden;
-        if (isHidden) {
-            codeDisplay.textContent = "****-****";
-            document.getElementById('eye-open').style.display = 'none';
-            document.getElementById('eye-closed').style.display = 'block';
-        } else {
-            codeDisplay.textContent = deviceCode;
-            document.getElementById('eye-open').style.display = 'block';
-            document.getElementById('eye-closed').style.display = 'none';
+    // ВКЛЮЧЕНИЕ ПУШЕЙ
+    document.getElementById('pushBtn').onclick = async () => {
+        try {
+            const permission = await Notification.requestPermission();
+            if (permission === 'granted') {
+                const messaging = getMessaging(app);
+                // ВСТАВЬ СЮДА СВОЙ VAPID KEY (из Firebase -> Cloud Messaging -> Web Push certificates)
+                const token = await getToken(messaging, { 
+                    vapidKey: 'ТВОЙ_VAPID_KEY' 
+                });
+                
+                if (token) {
+                    await set(ref(db, 'tokens/' + deviceCode), token);
+                    document.getElementById('pushStatus').textContent = "Уведомления включены!";
+                    document.getElementById('pushBtn').disabled = true;
+                    document.getElementById('pushBtn').textContent = "Пуш включен";
+                }
+            }
+        } catch (e) {
+            document.getElementById('pushStatus').textContent = "Ошибка: " + e.message;
         }
     };
 
-    // Логика модального окна
+    // ЛОГИКА ОКНА (работает когда вкладка открыта)
     const modal = document.getElementById('errorModal');
     const modalMessage = document.getElementById('modalMessage');
     const replyInput = document.getElementById('replyInput');
     const btnReply = document.getElementById('btnReply');
     const btnOk = document.getElementById('btnOk');
-
-    function playErrorSound() {
-        try {
-            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const oscillator = audioCtx.createOscillator();
-            const gainNode = audioCtx.createGain();
-            oscillator.type = 'sine';
-            oscillator.frequency.setValueAtTime(800, audioCtx.currentTime);
-            oscillator.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.2);
-            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
-            oscillator.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-            oscillator.start();
-            oscillator.stop(audioCtx.currentTime + 0.3);
-        } catch(e) {}
-    }
 
     btnOk.onclick = () => {
         modal.style.display = 'none';
@@ -149,9 +118,7 @@
             const answer = replyInput.value.trim();
             if (answer) {
                 push(ref(db, 'messages/' + deviceCode), {
-                    text: answer,
-                    from: 'device',
-                    timestamp: Date.now()
+                    text: answer, from: 'device', timestamp: Date.now()
                 });
             }
             modal.style.display = 'none';
@@ -161,26 +128,19 @@
         }
     };
 
-    // Слушаем сообщения
-    const messagesRef = ref(db, 'messages/' + deviceCode);
-    let isFirstLoad = true;
-
-    onChildAdded(messagesRef, (snapshot) => {
+    let lastProcessed = parseInt(localStorage.getItem('nr_last_msg_' + deviceCode)) || 0;
+    onChildAdded(ref(db, 'messages/' + deviceCode), (snapshot) => {
         const msg = snapshot.val();
-        
-        if (isFirstLoad) {
-            isFirstLoad = false;
-            if (msg.timestamp < Date.now() - 10000) return; 
-        }
-
-        if (msg.from === 'commander') {
+        if (msg.from === 'commander' && msg.timestamp > lastProcessed) {
+            lastProcessed = msg.timestamp;
+            localStorage.setItem('nr_last_msg_' + deviceCode, lastProcessed);
+            
             modalMessage.textContent = msg.text;
             modal.style.display = 'flex';
-            playErrorSound();
             replyInput.style.display = 'none';
             btnReply.textContent = 'Ответить';
         }
     });
 </script>
 </body>
-              </html>
+</html>
