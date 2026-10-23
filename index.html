@@ -17,11 +17,21 @@
         .btn-red { background: #d93025; width: auto; padding: 8px 16px; } .btn-red:hover { background: #b3261e; }
         .btn-google { background: #fff; color: #757575; border: 1px solid #ddd; display: flex; align-items: center; justify-content: center; gap: 10px; }
         .btn-google:hover { background: #f5f5f5; }
-        .eye-icon { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 18px; user-select: none; }
+        
+        .eye-icon { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; color: #666; display: flex; align-items: center; }
+        .eye-icon:hover { color: #333; }
+        
         .device-item { background: #e8f0fe; padding: 12px; margin-bottom: 8px; border-radius: 8px; cursor: pointer; border: 2px solid transparent; transition: 0.2s; display: flex; justify-content: space-between; align-items: center; }
         .device-item:hover { border-color: #4285f4; }
         .device-item.active { background: #d2e3fc; border-color: #4285f4; }
         .device-code { font-family: monospace; background: #fff; padding: 2px 6px; border-radius: 4px; color: #4285f4; font-weight: bold; }
+        
+        /* Стили для чата */
+        .chat-area { background: #f8f9fa; border: 1px solid #ddd; border-radius: 8px; height: 200px; overflow-y: auto; padding: 10px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px; }
+        .msg { padding: 8px 12px; border-radius: 8px; max-width: 80%; font-size: 14px; }
+        .msg-sent { background: #4285f4; color: white; align-self: flex-end; border-bottom-right-radius: 0; }
+        .msg-received { background: #e9ecef; color: #333; align-self: flex-start; border-bottom-left-radius: 0; }
+        
         .error { color: #d93025; font-size: 14px; margin-bottom: 10px; background: #fce8e6; padding: 10px; border-radius: 8px; }
         hr { margin: 20px 0; border: 1px solid #eee; }
     </style>
@@ -38,7 +48,10 @@
         
         <div class="input-group">
             <input type="password" id="password" placeholder="Пароль">
-            <span class="eye-icon" id="togglePassword">👁️</span>
+            <span class="eye-icon" id="togglePassword">
+                <svg id="eye-open" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                <svg id="eye-closed" class="hidden" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+            </span>
         </div>
         
         <button id="loginBtn" class="btn-blue">Войти</button>
@@ -61,7 +74,7 @@
 
         <h3>Добавить устройство</h3>
         <input type="text" id="deviceCodeInput" placeholder="Код устройства (например, NR-7777)">
-        <input type="text" id="deviceNameInput" placeholder="Название (например, Комп брата)">
+        <input type="text" id="deviceNameInput" placeholder="Название (например, Телефон брата)">
         <button id="addDeviceBtn" class="btn-green">Привязать устройство</button>
 
         <hr>
@@ -71,7 +84,11 @@
 
         <div id="messageArea" class="hidden">
             <hr>
-            <h3>Сообщение для: <span id="activeDeviceName" style="color: #4285f4;"></span></h3>
+            <h3>Диалог с: <span id="activeDeviceName" style="color: #4285f4;"></span></h3>
+            
+            <!-- Окно чата -->
+            <div class="chat-area" id="chatArea"></div>
+            
             <input type="text" id="messageInput" placeholder="Введите текст...">
             <button id="sendMessageBtn" class="btn-blue">Отправить</button>
         </div>
@@ -103,26 +120,25 @@
     const authError = document.getElementById('auth-error');
     const devicesList = document.getElementById('devicesList');
     const messageArea = document.getElementById('messageArea');
+    const chatArea = document.getElementById('chatArea');
     
     let currentUser = null;
     let activeDeviceCode = null;
 
-    // Глазик для пароля
+    // Глазик
     document.getElementById('togglePassword').onclick = () => {
         const passInput = document.getElementById('password');
-        const icon = document.getElementById('togglePassword');
+        const eyeOpen = document.getElementById('eye-open');
+        const eyeClosed = document.getElementById('eye-closed');
         if (passInput.type === 'password') {
-            passInput.type = 'text';
-            icon.textContent = '🙈';
+            passInput.type = 'text'; eyeOpen.classList.add('hidden'); eyeClosed.classList.remove('hidden');
         } else {
-            passInput.type = 'password';
-            icon.textContent = '👁️';
+            passInput.type = 'password'; eyeOpen.classList.remove('hidden'); eyeClosed.classList.add('hidden');
         }
     };
 
     function showError(msg) {
-        authError.textContent = msg;
-        authError.classList.remove('hidden');
+        authError.textContent = msg; authError.classList.remove('hidden');
         setTimeout(() => authError.classList.add('hidden'), 5000);
     }
 
@@ -150,11 +166,12 @@
             currentUser = null;
             authSection.classList.remove('hidden');
             dashSection.classList.add('hidden');
+            messageArea.classList.add('hidden');
         }
     });
 
     document.getElementById('addDeviceBtn').onclick = () => {
-        const code = document.getElementById('deviceCodeInput').value.trim();
+        const code = document.getElementById('deviceCodeInput').value.trim().toUpperCase();
         const name = document.getElementById('deviceNameInput').value.trim();
         if (!code || !name) return alert("Введите код и имя!");
 
@@ -185,12 +202,36 @@
         });
     }
 
+    let chatUnsubscribe = null;
+
     function selectDevice(code, name, element) {
         activeDeviceCode = code;
         document.getElementById('activeDeviceName').textContent = name;
         messageArea.classList.remove('hidden');
         document.querySelectorAll('.device-item').forEach(el => el.classList.remove('active'));
         element.classList.add('active');
+        
+        chatArea.innerHTML = ''; // Очищаем чат при смене устройства
+        
+        // Слушаем историю сообщений для этого устройства
+        if (chatUnsubscribe) chatUnsubscribe();
+        
+        const msgsRef = ref(db, 'messages/' + activeDeviceCode);
+        onValue(msgsRef, (snapshot) => {
+            chatArea.innerHTML = '';
+            const msgs = snapshot.val();
+            if (msgs) {
+                // Сортируем по времени
+                const sortedMsgs = Object.values(msgs).sort((a, b) => a.timestamp - b.timestamp);
+                sortedMsgs.forEach(msg => {
+                    const div = document.createElement('div');
+                    div.className = msg.from === 'commander' ? 'msg msg-sent' : 'msg msg-received';
+                    div.textContent = msg.text;
+                    chatArea.appendChild(div);
+                });
+                chatArea.scrollTop = chatArea.scrollHeight; // Скролл вниз
+            }
+        });
     }
 
     document.getElementById('sendMessageBtn').onclick = () => {
@@ -208,4 +249,4 @@
     };
 </script>
 </body>
-  </html>
+</html>
